@@ -1,0 +1,24 @@
+{
+  "name": "test-turborepo",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "apps/*"
+    ],
+    "nohoist": [
+      "**/vitest",
+      "**/@vitest/**",
+      "prettier"
+    ]
+  },
+  "dependencies": {
+    "@types/node": "^20.14.5",
+    "prettier": "^3.3.2",
+    "tsx": "^4.15.6",
+    "typescript": "^5.4.5"
+  }
+}
