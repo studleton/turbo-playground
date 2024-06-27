@@ -14,7 +14,7 @@ const sendTrackingData = async (isComplete: boolean) => {
 };
 
 // Defined as a separate object for types and testing spies
-export const triggerActions = {
+export const internalActions = {
   completeCourse: (state: CourseState) => {
     sendTrackingData(true);
     return {
@@ -30,7 +30,7 @@ export const triggerActions = {
     })),
   }),
 };
-type TriggerActions = typeof triggerActions;
+type InternalActions = typeof internalActions;
 
 type CourseState = {
   isCourseComplete: boolean;
@@ -38,9 +38,9 @@ type CourseState = {
   elements: { id: string; isComplete: boolean; isHidden: boolean }[];
   elementCompletionTriggers: {
     elementId: string;
-    actionKey: keyof TriggerActions;
+    actionKey: keyof InternalActions;
   }[];
-  triggerActions: TriggerActions;
+  internalActions: InternalActions;
   actions: {
     setElementAsComplete: (elementId: string) => void;
     setCourseAsComplete: () => void;
@@ -48,34 +48,38 @@ type CourseState = {
 };
 
 export const createCourseStore = (
-  initialData: Omit<CourseState, "actions" | "triggerActions">
+  initialData: Omit<CourseState, "actions" | "internalActions">
 ) =>
   create<CourseState>()((set) => ({
     ...initialData,
-    triggerActions,
+    internalActions,
     actions: {
       setElementAsComplete: (elementId) =>
         set((state) => {
           let newState = { ...state };
+
+          // complete element
           newState.elements = state.elements.map((element) =>
             element.id === elementId
               ? { ...element, isComplete: true }
               : element
           );
 
+          // complete course if all elements are complete
           if (newState.elements.every((element) => element.isComplete)) {
-            newState = newState.triggerActions.completeCourse(newState);
+            newState = newState.internalActions.completeCourse(newState);
           }
 
+          // handle element completion triggers
           newState.elementCompletionTriggers.forEach((trigger) => {
             if (trigger.elementId === elementId) {
-              newState = state.triggerActions[trigger.actionKey](newState);
+              newState = state.internalActions[trigger.actionKey](newState);
             }
           });
 
           return newState;
         }),
       setCourseAsComplete: () =>
-        set((state) => state.triggerActions.completeCourse(state)),
+        set((state) => state.internalActions.completeCourse(state)),
     },
   }));
