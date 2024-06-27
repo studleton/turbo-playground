@@ -1,4 +1,9 @@
-import { create, type StoreApi, type UseBoundStore } from "zustand";
+import {
+  create,
+  type StateCreator,
+  type StoreApi,
+  type UseBoundStore,
+} from "zustand";
 
 const fakeFetch = async (url: string, options: RequestInit) =>
   new Promise<Response>((resolve) =>
@@ -18,47 +23,83 @@ type SetStoreState = (
 ) => void;
 
 export const triggerActions = {
-  completeCourse: (set: SetStoreState) =>
-    set((state) => ({ isCourseComplete: true })),
-  showHiddenElements: (set: SetStoreState) =>
-    set((state) => ({
-      elements: state.elements.map((element) => ({
-        ...element,
-        isHidden: false,
-      })),
+  completeCourse: (state: CourseState) => ({
+    ...state,
+    isCourseComplete: true,
+  }),
+  showHiddenElements: (state: CourseState) => ({
+    ...state,
+    elements: state.elements.map((element) => ({
+      ...element,
+      isHidden: false,
     })),
+  }),
 };
 
-export type CourseState = {
+type TriggerActions = Record<
+  "completeCourse" | "showHiddenElements",
+  (state: CourseState) => CourseState
+>;
+type CourseState = {
   isCourseComplete: boolean;
   isSavingTracking: boolean;
   elements: { id: string; isComplete: boolean; isHidden: boolean }[];
-  triggers: {
+  elementCompletionTriggers: {
     elementId: string;
-    action: () => void;
+    actionKey: keyof TriggerActions;
   }[];
+  triggerActions: TriggerActions;
   setElementAsComplete: (elementId: string) => void;
 };
 
-export const useCourseStore = create<CourseState>()((set) => ({
-  isCourseComplete: false,
-  isSavingTracking: false,
-  elements: [
-    { id: "1", isComplete: false, isHidden: false },
-    { id: "2", isComplete: false, isHidden: false },
-    { id: "3", isComplete: false, isHidden: true },
-  ],
-  triggers: [
-    { elementId: "1", action: () => triggerActions.completeCourse(set) },
-    { elementId: "2", action: () => triggerActions.showHiddenElements(set) },
-  ],
-  setElementAsComplete: (elementId) =>
-    set((state) => ({
-      elements: state.elements.map((element) =>
-        element.id === elementId ? { ...element, isComplete: true } : element
-      ),
-    })),
-}));
+// type Action = "completeCourse" | "showHiddenElements";
+// export type CourseState = {
+//   triggers: {
+//     elementId: string;
+//     action: A extends string;
+//   }[];
+//   actions: Record<A, () => void>;
+// };
+
+// const course: CourseState = {
+//   isCourseComplete: false,
+//   isSavingTracking: false,
+//   elements: [
+//     { id: "1", isComplete: false, isHidden: false },
+//     { id: "2", isComplete: false, isHidden: false },
+//     { id: "3", isComplete: false, isHidden: true },
+//   ],
+//   triggers: [
+//     { elementId: "1", action: "completeCourse" },
+//     { elementId: "2", action: "showHiddenElements" },
+//   ],
+//   actions: {
+//     completeCourse: () => {},
+//     showHiddenElements: () => {},
+//   },
+// };
+
+// export const useCourseStore = create<CourseState>()((set) => ({
+//   isCourseComplete: false,
+//   isSavingTracking: false,
+//   elements: [
+//     { id: "1", isComplete: false, isHidden: false },
+//     { id: "2", isComplete: false, isHidden: false },
+//     { id: "3", isComplete: false, isHidden: true },
+//   ],
+//   triggers: [
+//     { elementId: "1", action: () => triggerActions.completeCourse(set) },
+//     { elementId: "2", action: () => triggerActions.showHiddenElements(set) },
+//   ],
+//   setElementAsComplete: (elementId) =>
+//     set((state) => ({
+//       elements: state.elements.map((element) =>
+//         element.id === elementId ? { ...element, isComplete: true } : element
+//       ),
+//     })),
+// }));
+
+// const triggerMiddleware = (config: StoreApi<CourseState>) => (set: SetStoreState) => (
 
 export const createCourseStore = (
   initialiser: (set: SetStoreState) => Omit<CourseState, "setElementAsComplete">
@@ -67,20 +108,21 @@ export const createCourseStore = (
     ...initialiser(set),
     setElementAsComplete: (elementId) =>
       set((state) => {
-        const elements = state.elements.map((element) =>
+        let newState = { ...state };
+        newState.elements = state.elements.map((element) =>
           element.id === elementId ? { ...element, isComplete: true } : element
         );
 
-        if (elements.every((element) => element.isComplete)) {
-          set(() => ({ isCourseComplete: true }));
+        if (newState.elements.every((element) => element.isComplete)) {
+          newState.isCourseComplete = true;
         }
 
-        state.triggers.forEach((trigger) => {
+        newState.elementCompletionTriggers.forEach((trigger) => {
           if (trigger.elementId === elementId) {
-            trigger.action();
+            newState = state.triggerActions[trigger.actionKey](newState);
           }
         });
 
-        return { elements };
+        return newState;
       }),
   }));

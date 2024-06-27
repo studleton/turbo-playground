@@ -14,13 +14,14 @@ const useCourseStore = createCourseStore((set) => ({
     { id: "2", isComplete: false, isHidden: false },
     { id: "3", isComplete: false, isHidden: true },
   ],
-  triggers: [
-    { elementId: "1", action: () => mockTriggerActions.completeCourse(set) },
-    {
-      elementId: "2",
-      action: () => mockTriggerActions.showHiddenElements(set),
-    },
+  elementCompletionTriggers: [
+    { elementId: "1", actionKey: "completeCourse" },
+    { elementId: "2", actionKey: "showHiddenElements" },
   ],
+  triggerActions: {
+    completeCourse: mockTriggerActions.completeCourse,
+    showHiddenElements: mockTriggerActions.showHiddenElements,
+  },
 }));
 
 describe("setElementAsComplete", () => {
@@ -46,6 +47,7 @@ describe("setElementAsComplete", () => {
 
   it("should set the isCourseComplete property to true when the completeCourse action is triggered", () => {
     const { result: store } = renderHook(() => useCourseStore());
+    expect(store.current.isCourseComplete).toBe(false);
     act(() => store.current.setElementAsComplete("1"));
     expect(mockTriggerActions.completeCourse).toHaveBeenCalled();
     expect(store.current.isCourseComplete).toBe(true);
@@ -53,11 +55,14 @@ describe("setElementAsComplete", () => {
 
   it("should set isHidden property to false for elements when the showHiddenElements action is triggered", () => {
     const { result: store } = renderHook(() => useCourseStore());
+    expect(
+      store.current.elements.every((element) => !element.isHidden)
+    ).toBeFalsy();
     act(() => store.current.setElementAsComplete("2"));
     expect(mockTriggerActions.showHiddenElements).toHaveBeenCalled();
-    expect(store.current.elements[0]!.isHidden).toBeFalsy();
-    expect(store.current.elements[1]!.isHidden).toBeFalsy();
-    expect(store.current.elements[2]!.isHidden).toBeFalsy();
+    expect(
+      store.current.elements.every((element) => !element.isHidden)
+    ).toBeTruthy();
   });
 
   // it("should call the sendTrackingData function when the isCourseComplete property changes to true", () => {
