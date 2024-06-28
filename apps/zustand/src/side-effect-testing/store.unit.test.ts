@@ -1,11 +1,13 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { createCourseStore, internalActions } from "./store";
+import { createCourseStore, internalActions, tracking } from "./store";
 
 const internalActionSpies = {
   completeCourse: vi.spyOn(internalActions, "completeCourse"),
   showHiddenElements: vi.spyOn(internalActions, "showHiddenElements"),
 };
+
+const sendTrackingDataSpy = vi.spyOn(tracking, "sendTrackingData");
 
 const useCourseStore = createCourseStore({
   isCourseComplete: false,
@@ -81,14 +83,10 @@ describe("setElementAsComplete", () => {
     ).toBeTruthy();
   });
 
-  describe("should call the sendTrackingData function when the isCourseComplete property changes to true", () => {
-    // This is achieved with the completeCourse internal action, as long as we use it
-    // instead of directly setting completion then sendTrackingData will be called
-    // Jump though more hoops to spy on sendTrackingData if you want to confirm a function call calls a function
-    it("should call the completeCourse internal action to complete the course", () => {
-      const { result: store } = renderHook(() => useCourseStore());
-      act(() => store.current.actions.setCourseAsComplete());
-      expect(internalActionSpies.completeCourse).toHaveBeenCalled();
-    });
+  it("should call the sendTrackingData function when the isCourseComplete property changes to true", () => {
+    const { result: store } = renderHook(() => useCourseStore());
+    act(() => store.current.actions.setCourseAsComplete());
+    expect(internalActionSpies.completeCourse).toHaveBeenCalled();
+    expect(sendTrackingDataSpy).toHaveBeenCalled();
   });
 });
